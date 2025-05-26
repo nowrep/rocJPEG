@@ -629,6 +629,10 @@ RocJpegStatus RocJpegVappiDecoder::SubmitDecode(const JpegStreamParameters *jpeg
         surface_attrib.value.value.p = &modifier_list;
         surface_attribs.push_back(surface_attrib);
     }
+    surface_attrib.type = VASurfaceAttribMemoryType;
+    surface_attrib.value.type = VAGenericValueTypeInteger;
+    surface_attrib.value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2;
+    surface_attribs.push_back(surface_attrib);
 
     // if the HW JPEG decoder has a built-in ROI-decode capability then fill the requested crop rectangle to the picture parameter buffer
     void *picture_parameter_buffer = (void*)&jpeg_stream_params->picture_parameter_buffer;
@@ -750,10 +754,15 @@ RocJpegStatus RocJpegVappiDecoder::SubmitDecodeBatched(JpegStreamParameters *jpe
     }
 
     uint32_t surface_format;
-    std::vector<VASurfaceAttrib> surface_attribs(2);
+    std::vector<VASurfaceAttrib> surface_attribs(3);
     surface_attribs[0].type = VASurfaceAttribPixelFormat;
     surface_attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
     surface_attribs[0].value.type = VAGenericValueTypeInteger;
+
+    surface_attribs[1].type = VASurfaceAttribMemoryType;
+    surface_attribs[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
+    surface_attribs[1].value.type = VAGenericValueTypeInteger;
+    surface_attribs[1].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2;
 
     uint64_t mod_linear = 0;
     VADRMFormatModifierList modifier_list = {
@@ -761,10 +770,10 @@ RocJpegStatus RocJpegVappiDecoder::SubmitDecodeBatched(JpegStreamParameters *jpe
         .modifiers = &mod_linear,
     };
     if (supports_modifiers_) {
-        surface_attribs[1].type = VASurfaceAttribDRMFormatModifiers;
-        surface_attribs[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
-        surface_attribs[1].value.type = VAGenericValueTypePointer;
-        surface_attribs[1].value.value.p = &modifier_list;
+        surface_attribs[2].type = VASurfaceAttribDRMFormatModifiers;
+        surface_attribs[2].flags = VA_SURFACE_ATTRIB_SETTABLE;
+        surface_attribs[2].value.type = VAGenericValueTypePointer;
+        surface_attribs[2].value.value.p = &modifier_list;
     }
 
     uint32_t roi_width;
@@ -784,7 +793,7 @@ RocJpegStatus RocJpegVappiDecoder::SubmitDecodeBatched(JpegStreamParameters *jpe
         RocJpegVaapiMemPoolEntry mem_pool_entry = vaapi_mem_pool_->GetEntry(key.pixel_format, key.width, key.height, indices.size());
         if (mem_pool_entry.va_surface_ids.empty()) {
             mem_pool_entry.va_surface_ids.resize(indices.size());
-            CHECK_VAAPI(vaCreateSurfaces(va_display_, surface_format, key.width, key.height, mem_pool_entry.va_surface_ids.data(), mem_pool_entry.va_surface_ids.size(), surface_attribs.data(), supports_modifiers_ ? 2 : 1));
+            CHECK_VAAPI(vaCreateSurfaces(va_display_, surface_format, key.width, key.height, mem_pool_entry.va_surface_ids.data(), mem_pool_entry.va_surface_ids.size(), surface_attribs.data(), supports_modifiers_ ? 3 : 2));
             mem_pool_entry.image_width = key.width;
             mem_pool_entry.image_height = key.height;
             for (size_t i = 0; i < mem_pool_entry.va_surface_ids.size(); i++) {
