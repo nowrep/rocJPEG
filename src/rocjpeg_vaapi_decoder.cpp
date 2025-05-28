@@ -664,6 +664,15 @@ RocJpegStatus RocJpegVappiDecoder::SubmitDecode(const JpegStreamParameters *jpeg
         surface_id = mem_pool_entry.va_surface_ids[0];
         mem_pool_entry.entry_status = kBusy;
         CHECK_ROCJPEG(vaapi_mem_pool_->AddPoolEntry(surface_pixel_format, mem_pool_entry));
+
+        VASurfaceID surface_id = mem_pool_entry.va_surface_ids[0];
+        VADRMPRIMESurfaceDescriptor va_drm_prime_surface_desc = {};
+        CHECK_VAAPI(vaExportSurfaceHandle(va_display_, surface_id, VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
+            VA_EXPORT_SURFACE_READ_ONLY | VA_EXPORT_SURFACE_SEPARATE_LAYERS,
+            &va_drm_prime_surface_desc));
+        for (uint32_t i = 0; i < va_drm_prime_surface_desc.num_objects; i++)
+            close(va_drm_prime_surface_desc.objects[i].fd);
+
     } else {
         surface_id = mem_pool_entry.va_surface_ids[0];
     }
